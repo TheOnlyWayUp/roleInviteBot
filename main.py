@@ -1,8 +1,10 @@
 import discord, pickledb, asyncio
+import dataframe_image as dfi
 from discord.ext import commands, tasks
 from rich.console import Console
 from rich.theme import Theme
 from rich import print
+import pandas as pd
 inviteDict = pickledb.load('inviteDb.db', False)
 theme = Theme({"info":"cyan", "warning":"yellow", "error":"red", "success":"green"})
 console = Console(theme=theme)
@@ -129,5 +131,23 @@ async def dump():
     print(userDict.dump())
     print('------')
 dump.start()
+
+@bot.command(help="Shows you the top 10 users with the highest verified invites.")
+async def leaderboard(ctx):
+    """Shows you the top 10 users with the highest verified invites.
+    """
+    users = userDict.dump()
+    users = [(k, v["invited"]["verifiedInvites"]) for k, v in users.items()]
+    users = sorted(users, key=lambda x: len(x[1]), reverse=True)
+    users = users[:10]
+    console.log(users)
+    safe = {bot.get_user(int(k)).name:len(v) for k, v in users}
+    df = {"name":list(safe.keys()), "invites":list(safe.values())}
+    console.log(df)
+    df = pd.DataFrame(df)
+    dfi.export(df, 'leaderboard.png', table_conversion='matplotlib')
+    file = discord.File('leaderboard.png', filename='leaderboard.png')
+    nusers = [f'{i+1}. {bot.get_user(int(users[i][0])).name} - {len(users[i][1])} verified invite(s)' for i in range(len(users))]
+    await ctx.send('\n'.join(nusers), file=file)
 
 bot.run("token")
