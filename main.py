@@ -1,5 +1,4 @@
 import discord, pickledb, asyncio
-from discord import user
 from discord.ext import commands, tasks
 from rich.console import Console
 from rich.theme import Theme
@@ -23,7 +22,7 @@ class invite():
             return self.db[key]
         except:
             return False
-    def getAll(self):
+    def dump(self):
         return self.db
     def delete(self, key):
         try:
@@ -35,6 +34,8 @@ class invite():
 inviteDict = invite()
 userDict = invite()
 async def updateInvites(guild):
+    """Updates the database with new information about all invites.
+    """
     invites = await guild.invites()
     for invite in invites:
         inviteDict.set(invite.code, {"uses":invite.uses, "inviter":invite.inviter.id, "channel":invite.channel.id, })
@@ -45,6 +46,8 @@ async def updateInvites(guild):
 
 @bot.event
 async def on_ready():
+    """Tells you when the bot has successfully connected to Discord.
+    """    
     console.print(f'Logged in as [green]{bot.user.name}[/] ({bot.user.id}) and in {len(bot.guilds)} {"servers" if len(bot.guilds) > 1 else "server"}.')
     console.log(f"Connected to Discord Gateway. Dpy version {discord.__version__}, servers - {', '.join([str(guild.name) for guild in bot.guilds])}.")
     await updateInvites(bot.guilds[0])
@@ -53,10 +56,14 @@ async def on_ready():
 
 @bot.event
 async def on_invite_create(invite):
+    """Updates the invites database when a user creates an invite.
+    """
     await updateInvites(invite.guild)
 
 @bot.event
 async def on_member_join(member):
+    """Updates invites when a member joins
+    """
     invites = await member.guild.invites()
     for invite in invites:
         if invite.uses > inviteDict.get(invite.code)["uses"]:
@@ -74,36 +81,53 @@ async def on_member_join(member):
 
 @bot.event
 async def on_member_remove(member):
+    """Removes a database/verified entry when a user is kicked, or leaves the server.
+    """
     bruh = userDict.get(str(member.id))
     inviter = userDict.get(str(bruh["invitedBy"]))
     inviter["invited"]["invited"].discard(member.id)
     inviter['invited']['verifiedInvites'].discard(member.id)
     userDict.set(str(bruh["invitedBy"]), inviter)
     userDict.delete(str(member.id))
-# @bot.event
-# async def on_member_update(before, after):
-#     if before.roles != after.roles:
-#         if len(before.roles) < len(after.roles):
-#             if roleId in [id.id for id in after.roles]:
-#                 console.log(f'[green]{after.name}[/] has been verified.')
-#                 toModify = userDict.get(userDict.get(str(after.id))['invitedBy'])
-#                 toModify["invited"]['verifiedInvites'].update([after.id])
-#                 userDict.set(str(after.id), toModify)
-#                 return
-#             console.log("Status of L77 - ")
-#             invitedBy = userDict.get(str(after.id))['invitedBy']
-#             toModify = userDict.get(invitedBy)
-#             toModify["invited"]['verifiedInvites'].remove([after.id])
-#             userDict.set(str(after.id), toModify)
-#             console.log(f'[green]{after.name}[/] has gained a role.')
-#             return
 
-#         console.log(f'[green]{after.name}[/] has lost a role.')
+
+
+@bot.event
+async def on_member_update(before, after):
+    """Checks if a member's roles have been updated and updates the database accordingly.
+    """
+    arid = [r.id for r in after.roles]
+    brid = [r.id for r in before.roles]
+    if before.roles != after.roles:
+        if roleId in arid:
+            if roleId in brid:
+                #If the role we're interested is unchanged.
+                return
+            #If the role was added
+            toModify = userDict.get(str(after.id))['invitedBy']
+            toModify = userDict.get(str(toModify))
+            toModify['invited']['verifiedInvites'].update([after.id])
+            console.log(f'[green]{after.name}[/] has been verified - {userDict.get(str(after.id))["invitedBy"]}.')
+            return
+        if roleId in brid:
+            if roleId in arid:
+                #If the role we're interested is unchanged.
+                return
+            #If the role was removed
+            toModify = userDict.get(str(before.id))['invitedBy']
+            toModify = userDict.get(str(toModify))
+            toModify['invited']['verifiedInvites'].discard(before.id)
+            console.log(f'[green]{before.name}[/] has been unverified - {userDict.get(str(before.id))["invitedBy"]}.')
+            return
 
 @tasks.loop(seconds=10)
 async def dump():
-    print(inviteDict.getAll())
-    print(userDict.getAll())
+    """Dumps all data to the database, essentially committing it.
+    """
+    print("Dumping...")
+    print(inviteDict.dump())
+    print(userDict.dump())
+    print('------')
 dump.start()
 
 bot.run("token")
