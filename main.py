@@ -106,4 +106,4 @@ async def dump():
     print(userDict.getAll())
 dump.start()
 
-bot.run("ODgzMDQ3MTk1Mjk1NzY0NTIx.YTEPyQ.-6N9aaoW1Qksn07BrLq0g6RNINo")
+bot.run("token")
