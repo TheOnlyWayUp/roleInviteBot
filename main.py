@@ -6,8 +6,6 @@ from rich.theme import Theme
 from rich import print
 from sqlitedict import SqliteDict
 
-# from replit import db
-
 theme = Theme({"info": "cyan", "warning": "yellow", "error": "red", "success": "green"})
 
 with open("config.json") as f:
@@ -211,7 +209,7 @@ async def on_member_update(before, after):
             return
 
 
-@tasks.loop(seconds=10)
+@tasks.loop(seconds=60)
 async def dump():
     """Dumps all data to the database, essentially committing it."""
     console.log("Dumping...")
