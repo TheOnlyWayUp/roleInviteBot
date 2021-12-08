@@ -1,29 +1,50 @@
-import discord, asyncio
+import discord, asyncio, json
 import dataframe_image as dfi
 import pandas as pd
 from discord.ext import commands, tasks
-from rich.console import Console
 from rich.theme import Theme
 from rich import print
 
 # from replit import db
 
 theme = Theme({"info": "cyan", "warning": "yellow", "error": "red", "success": "green"})
-console = Console(theme=theme)
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
-roleId = 884480740421672991
-staffRoleId = 884480740421672991
+
+with open("config.json") as f:
+    config = json.load(f)
+token = config["token"]
+roleId = config["roleId"]
+staffRoleId = config["staffRoleId"]
+log = config["log"]
 
 """ TODO
 [ ] Make bot more aesthetic
 [ ] Add database integration
 [ ] Test bot
 [ ] Add staff only commands + checks
+[x] Add config
 """
+
+if log:
+    from rich.console import Console
+
+    console = Console(theme=theme)
+    print("[green]logging is enabled[/]")
+else:
+
+    class console:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def log(self, *args, **kwargs):
+            pass
+
+    console = console()
+    print("[red]LOGGING IS DISABLED[/]")
 
 
 class invite:
-    def __init__(self):
+    def __init__(self, cheese):
         self.db = {}
 
     def set(self, key, value):
@@ -52,6 +73,25 @@ class invite:
 
 inviteDict = invite("inviteDict.db")
 userDict = invite("userDict.db")
+# Temporary -
+userDict.set(
+    "815909107549601803",
+    {
+        "invitedBy": 876055467678375998,
+        "invited": {"invited": set(), "verifiedInvites": set()},
+    },
+)
+userDict.set(
+    "876055467678375998",
+    {
+        "invitedBy": None,
+        "invited": {
+            "invited": {815909107549601803},
+            "verifiedInvites": {815909107549601803},
+        },
+    },
+)
+# -------------------------------------------------------
 
 
 async def updateInvites(guild):
@@ -80,7 +120,7 @@ async def updateInvites(guild):
 @bot.event
 async def on_ready():
     """Tells you when the bot has successfully connected to Discord."""
-    console.print(
+    print(
         f'Logged in as [green]{bot.user.name}[/] ({bot.user.id}) and in {len(bot.guilds)} {"servers" if len(bot.guilds) > 1 else "server"}.'
     )
     console.log(
@@ -115,7 +155,6 @@ async def on_member_join(member):
             bruh = userDict.get(str(invite.inviter.id))
             bruh["invited"]["invited"].update([member.id])
             e = userDict.set(str(invite.inviter.id), bruh)
-            print(e)
             console.log(bruh)
             # console.log("Trying to set invites")
             console.log(
@@ -174,10 +213,10 @@ async def on_member_update(before, after):
 @tasks.loop(seconds=10)
 async def dump():
     """Dumps all data to the database, essentially committing it."""
-    print("Dumping...")
-    print(inviteDict.dump())
-    print(userDict.dump())
-    print("------")
+    console.log("Dumping...")
+    console.log(inviteDict.dump())
+    console.log(userDict.dump())
+    console.log("------")
 
 
 dump.start()
@@ -234,7 +273,7 @@ async def help(ctx):
         title="Help", description="Prefix - !/mentions", color=0x00FF00
     )
     helpEmbed.add_field(
-        name="!leaderboard",
+        name="!leaderboard [role]",
         value="Shows you the top 10 users with the highest verified invites.",
         inline=False,
     )
@@ -257,18 +296,23 @@ async def help(ctx):
 )
 async def invites(ctx, user: discord.Member = None):
     """Gives you the invite stats for the user."""
-    if user is None:
+    if user == None:
         user = ctx.author
     try:
-        userDict.get(str(user.id))
+        userd = userDict.get(str(user.id))
     except TypeError:
         await ctx.send(f"That user isn't being tracked yet.")
         return
-    user = userDict.get(str(user.id))
-    inviter = bot.get_user(int(userDict.get(str(user["invitedBy"]))))
+    inviter = "Unknown"
+    try:
+        inviter = bot.get_user(int(str(userd["invitedBy"]))).mention
+    except ValueError:
+        pass
+    except TypeError:
+        pass
     userEmbed = discord.Embed(
-        title=bot.get_user(str(user.id)).name,
-        description=f"Invited by {inviter.mention}.\nInvites - {len(dict(user['invited']['invited']))}.\nVerified Invites - {len(dict(user)['invited']['verifiedInvites'])}",
+        title=bot.get_user(user.id).name,
+        description=f"Invited by {inviter}.\nInvites - {len(dict(userd)['invited']['invited'])} ({', '.join([bot.get_user(username).name for username in userd['invited']['invited']])})\nVerified Invites - {len(dict(userd)['invited']['verifiedInvites'])} ({', '.join([bot.get_user(username).name for username in userd['invited']['verifiedInvites']])})",
         color=0x00FF00,
     )
     await ctx.send(embed=userEmbed)
@@ -293,9 +337,9 @@ async def about(ctx):
         inline=False,
     )
     aboutEmbed.add_field(
-        name="Staff Role", value=bot.get_role(staffRoleId).name, inline=False
+        name="Staff Role", value=ctx.guild.get_role(staffRoleId).mention, inline=False
     )
     await ctx.send(embed=aboutEmbed)
 
 
-bot.run("token")
+bot.run(token)
