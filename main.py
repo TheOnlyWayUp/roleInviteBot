@@ -346,5 +346,5 @@ async def about(ctx):
     )
     await ctx.send(embed=aboutEmbed)
 
-    
+
 bot.run(token)
