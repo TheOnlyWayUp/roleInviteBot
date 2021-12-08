@@ -25,6 +25,7 @@ log = config["log"]
 bot = commands.Bot(command_prefix=config["prefix"], intents=discord.Intents.all())
 bot.load_extension("jishaku")
 
+
 def staffCheck():
     def predicate(ctx):
         if staffRoleId in [role.id for role in ctx.author.roles]:
