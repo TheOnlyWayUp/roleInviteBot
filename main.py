@@ -1,40 +1,32 @@
-import discord, pickledb, asyncio
+import discord, asyncio
 import dataframe_image as dfi
+import pandas as pd
 from discord.ext import commands, tasks
 from rich.console import Console
 from rich.theme import Theme
 from rich import print
-import pandas as pd
-inviteDict = pickledb.load('inviteDb.db', False)
+from replit import db
 theme = Theme({"info":"cyan", "warning":"yellow", "error":"red", "success":"green"})
 console = Console(theme=theme)
 bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 roleId = 884480740421672991
 class invite():
-    def __init__(self):
-        self.db = {}
+    def __init__(self, file):
+        self.db = pickledb.load(file, True)
     def set(self, key, value):
-        try:
-            self.db[key] = value
-            return True
-        except:
-            return False
+        console.log(f"{key} : {value}")
+        if type(value) == dict:
+            value = {k: list(v) if type(v) is set else v for k, v in value.items()}
+        return self.db.set(key, value)
     def get(self, key):
-        try:
-            return self.db[key]
-        except:
-            return False
+        return self.db.get(key)
     def dump(self):
-        return self.db
+        return [{key:self.db.get(key)} for key in list(self.db.getall())]
     def delete(self, key):
-        try:
-            self.db.pop(key, None)
-            return True
-        except:
-            return False
+        return self.db.delete(key)
 
-inviteDict = invite()
-userDict = invite()
+inviteDict = invite("inviteDict.db")
+userDict = invite("userDict.db")
 async def updateInvites(guild):
     """Updates the database with new information about all invites.
     """
@@ -85,13 +77,15 @@ async def on_member_join(member):
 async def on_member_remove(member):
     """Removes a database/verified entry when a user is kicked, or leaves the server.
     """
-    bruh = userDict.get(str(member.id))
-    inviter = userDict.get(str(bruh["invitedBy"]))
-    inviter["invited"]["invited"].discard(member.id)
-    inviter['invited']['verifiedInvites'].discard(member.id)
-    userDict.set(str(bruh["invitedBy"]), inviter)
-    userDict.delete(str(member.id))
-
+    try:
+        bruh = userDict.get(str(member.id))
+        inviter = userDict.get(str(bruh["invitedBy"]))
+        inviter["invited"]["invited"].discard(member.id)
+        inviter['invited']['verifiedInvites'].discard(member.id)
+        userDict.set(str(bruh["invitedBy"]), inviter)
+        userDict.delete(str(member.id))
+    except TypeError:
+        pass
 
 
 @bot.event
@@ -133,21 +127,29 @@ async def dump():
 dump.start()
 
 @bot.command(help="Shows you the top 10 users with the highest verified invites.")
-async def leaderboard(ctx):
+async def leaderboard(ctx, role:discord.Role=None):
     """Shows you the top 10 users with the highest verified invites.
     """
-    users = userDict.dump()
-    users = [(k, v["invited"]["verifiedInvites"]) for k, v in users.items()]
-    users = sorted(users, key=lambda x: len(x[1]), reverse=True)
-    users = users[:10]
-    console.log(users)
-    safe = {bot.get_user(int(k)).name:len(v) for k, v in users}
-    df = {"name":list(safe.keys()), "invites":list(safe.values())}
-    console.log(df)
-    df = pd.DataFrame(df)
-    dfi.export(df, 'leaderboard.png', table_conversion='matplotlib')
+    if role is None:
+        users = userDict.dump()
+        users = [(k, v["invited"]["verifiedInvites"]) for k, v in users.items()]
+        users = sorted(users, key=lambda x: len(x[1]), reverse=True)
+        users = users[:10]
+        console.log(users)
+        safe = {bot.get_user(int(k)).name:len(v) for k, v in users}
+        df = {"name":list(safe.keys()), "invites":list(safe.values())}
+        console.log(df)
+        df = pd.DataFrame(df)
+        dfi.export(df, 'leaderboard.png', table_conversion='matplotlib')
+        file = discord.File('leaderboard.png', filename='leaderboard.png')
+        nusers = [f'{i+1}. {bot.get_user(int(users[i][0])).name} - {len(users[i][1])} verified invite(s)' for i in range(len(users))]
+        await ctx.send('\n'.join(nusers), file=file)
+        return
+    members = role.members
+    users = [user['invitedBy'] for user in [userDict.get(str(m.id)) for m in members if type(userDict.get(str(m.id))) is not bool and dict(userDict.get(str(m.id))).get("invitedBy") is not None]]
+    safe = {bot.get_user(int(l)):users.count(l) for l in set(users)}
+    invites = sorted(safe.items(), key=lambda x: x[1], reverse=True)
+    dfi.export({"name":list(safe.keys()), "invites":list(safe.values())}, 'leaderboard.png', table_conversion='matplotlib')
     file = discord.File('leaderboard.png', filename='leaderboard.png')
-    nusers = [f'{i+1}. {bot.get_user(int(users[i][0])).name} - {len(users[i][1])} verified invite(s)' for i in range(len(users))]
-    await ctx.send('\n'.join(nusers), file=file)
-
+    await ctx.send(invites, file=file)
 bot.run("token")
