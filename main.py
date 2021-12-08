@@ -1,4 +1,4 @@
-import discord, asyncio, json
+import discord, asyncio, json, jishaku
 import dataframe_image as dfi
 import pandas as pd
 from discord.ext import commands, tasks
@@ -25,7 +25,7 @@ log = config["log"]
 [x] Add config
 """
 bot = commands.Bot(command_prefix=config["prefix"], intents=discord.Intents.all())
-
+bot.load_extension("jishaku")
 
 def staffCheck():
     def predicate(ctx):
@@ -38,6 +38,7 @@ def staffCheck():
 
 if log:
     from rich.console import Console
+
     console = Console(theme=theme)
     print("[green]logging is enabled[/]")
 else:
@@ -54,10 +55,14 @@ else:
 
 
 class invite:
+    """Database Class"""
+
     def __init__(self, cheese):
+        """Initialize the database"""
         self.db = SqliteDict(cheese, autocommit=True)
 
     def set(self, key, value):
+        """Set a key to a value"""
         try:
             self.db[key] = value
             return True
@@ -65,15 +70,18 @@ class invite:
             return False
 
     def get(self, key):
+        """Get a value from a key"""
         try:
             return self.db[key]
         except:
             return False
 
     def dump(self):
+        """Returns the entire database's value."""
         return {k: v for k, v in self.db.items()}
 
     def delete(self, key):
+        """Deletes a key from the database"""
         try:
             self.db.pop(key, None)
             return True
@@ -83,25 +91,6 @@ class invite:
 
 inviteDict = invite("inviteDict.db")
 userDict = invite("userDict.db")
-# Temporary -
-userDict.set(
-    "815909107549601803",
-    {
-        "invitedBy": 876055467678375998,
-        "invited": {"invited": set(), "verifiedInvites": set()},
-    },
-)
-userDict.set(
-    "876055467678375998",
-    {
-        "invitedBy": None,
-        "invited": {
-            "invited": {815909107549601803},
-            "verifiedInvites": {815909107549601803},
-        },
-    },
-)
-# -------------------------------------------------------
 
 
 async def updateInvites(guild):
@@ -199,21 +188,23 @@ async def on_member_update(before, after):
                 # If the role we're interested is unchanged.
                 return
             # If the role was added
-            toModify = userDict.get(str(after.id))["invitedBy"]
-            toModify = userDict.get(str(toModify))
+            invitedBy = userDict.get(str(before.id))["invitedBy"]
+            toModify = userDict.get(str(invitedBy))
             toModify["invited"]["verifiedInvites"].update([after.id])
             console.log(
                 f'[green]{after.name}[/] has been verified - {userDict.get(str(after.id))["invitedBy"]}.'
             )
+            userDict.set(str(invitedBy), toModify)
             return
         if roleId in brid:
             if roleId in arid:
                 # If the role we're interested is unchanged.
                 return
             # If the role was removed
-            toModify = userDict.get(str(before.id))["invitedBy"]
-            toModify = userDict.get(str(toModify))
+            invitedBy = userDict.get(str(before.id))["invitedBy"]
+            toModify = userDict.get(str(invitedBy))
             toModify["invited"]["verifiedInvites"].discard(before.id)
+            userDict.set(str(invitedBy), toModify)
             console.log(
                 f'[green]{before.name}[/] has been unverified - {userDict.get(str(before.id))["invitedBy"]}.'
             )
@@ -238,7 +229,9 @@ async def leaderboard(ctx, role: discord.Role = None):
     if role is None:
         users = userDict.dump()
         users = [(k, v["invited"]["verifiedInvites"]) for k, v in users.items()]
+        console.log(users)
         users = sorted(users, key=lambda x: len(x[1]), reverse=True)
+        console.log(users)
         users = users[:10]
         safe = {bot.get_user(int(k)).name: len(v) for k, v in users}
         df = {"name": list(safe.keys()), "invites": list(safe.values())}
@@ -261,16 +254,20 @@ async def leaderboard(ctx, role: discord.Role = None):
             and dict(userDict.get(str(m.id))).get("invitedBy") is not None
         ]
     ]
-    safe = {bot.get_user(int(l)): users.count(l) for l in set(users)}
-    invites = sorted(safe.items(), key=lambda x: x[1], reverse=True)
-    safe = {"name": list(safe.keys()), "invites": list(safe.values())}
+    users = {bot.get_user(int(l)): users.count(l) for l in set(users)}
+    invites = sorted(users.items(), key=lambda x: x[1], reverse=True)[::10]
+    safe = {"name": list(users.keys()), "invites": list(users.values())}
     dfi.export(
-        safe,
+        pd.DataFrame(safe),
         "leaderboard.png",
         table_conversion="matplotlib",
     )
     file = discord.File("leaderboard.png", filename="leaderboard.png")
-    await ctx.send(invites, file=file)
+    nusers = [
+        f"{i+1}. {list(users.keys())[i].name} - {list(users.values())[i]} verified invite(s)"
+        for i in range(len(users))
+    ]
+    await ctx.send("\n".join(nusers), file=file)
 
 
 bot.remove_command("help")
@@ -278,6 +275,7 @@ bot.remove_command("help")
 
 @bot.command(help="This message")
 async def help(ctx):
+    """Help command"""
     helpEmbed = discord.Embed(
         title="Help", description="Prefix - !/mentions", color=0x00FF00
     )
@@ -351,37 +349,4 @@ async def about(ctx):
     await ctx.send(embed=aboutEmbed)
 
 
-# @bot.command(help="Changes the config")
-# @commands.check_any(staffCheck())
-# async def config(ctx, option, value: discord.Role):
-#     if option == "staffRole":
-#         staffRoleId = value.id
-#         with open("config.json", "r") as cg:
-#             c = json.load(cg)
-#         with open("config.json", "w") as config:
-#             c["staffRole"] = staffRoleId
-#             json.dump(c, config)
-#         await ctx.send(f"Staff role set to {value.name}.")
-#     elif option == "defaultRole":
-#         roleId = value.id
-#         with open("config.json", "r") as cg:
-#             c = json.load(cg)
-#         with open("config.json", "w") as config:
-#             c["defaultRole"] = roleId
-#             json.dump(c, config)
-#         await ctx.send(f"Default role set to {value.name}.")
-#     else:
-#         await ctx.send(f"{option} is not a valid option, try staffRole or defaultRole.")
-
-try:
-    bot.run(token)
-except BaseException:
-    inviteDict.close()
-    userDict.close()
-    print("Stopping")
-    exit()
-except KeyboardInterrupt:
-    inviteDict.close()
-    userDict.close()
-    print("Stopping")
-    exit()
+bot.run(token)
