@@ -7,34 +7,14 @@ from rich import print
 from sqlitedict import SqliteDict
 
 theme = Theme({"info": "cyan", "warning": "yellow", "error": "red", "success": "green"})
-
 with open("config.json") as f:
     config = json.load(f)
 token = config["token"]
 roleId = config["roleId"]
 staffRoleId = config["staffRoleId"]
 log = config["log"]
-
-""" TODO
-[ ] Make bot more aesthetic
-[ ] Add database integration
-[ ] Test bot
-[ ] Add staff only commands + checks
-[x] Add config
-"""
 bot = commands.Bot(command_prefix=config["prefix"], intents=discord.Intents.all())
 bot.load_extension("jishaku")
-
-
-def staffCheck():
-    def predicate(ctx):
-        if staffRoleId in [role.id for role in ctx.author.roles]:
-            return True
-        return False
-
-    return commands.check(predicate)
-
-
 if log:
     from rich.console import Console
 
@@ -154,7 +134,6 @@ async def on_member_join(member):
             bruh["invited"]["invited"].update([member.id])
             userDict.set(str(invite.inviter.id), bruh)
             console.log(bruh)
-            # console.log("Trying to set invites")
             console.log(
                 f"[green]{member.name}[/] has been added to the list of users who invited {invite.inviter.name}. {userDict.get(str(invite.inviter.id))}"
             )
@@ -345,6 +324,7 @@ async def about(ctx):
         name="Staff Role", value=ctx.guild.get_role(staffRoleId).mention, inline=False
     )
     await ctx.send(embed=aboutEmbed)
+
 
 
 bot.run(token)
