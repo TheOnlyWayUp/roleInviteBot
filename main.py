@@ -152,4 +152,31 @@ async def leaderboard(ctx, role:discord.Role=None):
     dfi.export({"name":list(safe.keys()), "invites":list(safe.values())}, 'leaderboard.png', table_conversion='matplotlib')
     file = discord.File('leaderboard.png', filename='leaderboard.png')
     await ctx.send(invites, file=file)
+
+bot.remove_command("help")
+
+@bot.command(help="This message")
+async def help(ctx):
+    helpEmbed = discord.Embed(title="Help", description="Prefix - !/mentions", color=0x00ff00)
+    helpEmbed.add_field(name="!leaderboard", value="Shows you the top 10 users with the highest verified invites.", inline=False)
+    helpEmbed.add_field(name="!stats/profile/me/invites [user, default - author]", value="Gives you the invite stats for the user.", inline=False)
+    helpEmbed.add_field(name="!about", value="The bot's settings, and other information about it.", inline=False)
+    helpEmbed.add_field(name="!help", value="This command.", inline=False)
+    await ctx.send(embed=helpEmbed)
+
+@bot.command(help="Gives you the invite stats for the user.", aliases=['stats', 'profile', 'me'])
+async def invites(ctx, user:discord.Member=None):
+    """Gives you the invite stats for the user.
+    """
+    if user is None:
+        user = ctx.author
+    try:
+        userDict.get(str(user.id))
+    except TypeError:
+        await ctx.send(f'That user isn\'t being tracked yet.')
+        return
+    user = userDict.get(str(user.id))
+    inviter = bot.get_user(int(userDict.get(str(user["invitedBy"]))))
+    userEmbed = discord.Embed(title=bot.get_user(str(user.id)).name, description=f"Invited by {inviter.mention}.\nInvites - {len(dict(user['invited']['invited']))}.\nVerified Invites - {len(dict(user)['invited']['verifiedInvites'])}", color=0x00ff00)
+    await ctx.send(embed=userEmbed)
 bot.run("token")
