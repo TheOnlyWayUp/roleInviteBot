@@ -351,25 +351,37 @@ async def about(ctx):
     await ctx.send(embed=aboutEmbed)
 
 
-@bot.command(help="Changes the config")
-@commands.check_any(staffCheck())
-async def config(ctx, option, value: discord.Role):
-    if option == "staffRole":
-        staffRoleId = value.id
-        with open("config.json", "w") as config:
-            c = json.load("config.json")
-            c["staffRole"] = staffRoleId
-            json.dump(c, config)
-        await ctx.send(f"Staff role set to {value.name}.")
-    elif option == "defaultRole":
-        roleId = value.id
-        with open("config.json", "w") as config:
-            c = json.load("config.json")
-            c["defaultRole"] = roleId
-            json.dump(c, config)
-        await ctx.send(f"Default role set to {value.name}.")
-    else:
-        await ctx.send(f"{option} is not a valid option, try staffRole or defaultRole.")
+# @bot.command(help="Changes the config")
+# @commands.check_any(staffCheck())
+# async def config(ctx, option, value: discord.Role):
+#     if option == "staffRole":
+#         staffRoleId = value.id
+#         with open("config.json", "r") as cg:
+#             c = json.load(cg)
+#         with open("config.json", "w") as config:
+#             c["staffRole"] = staffRoleId
+#             json.dump(c, config)
+#         await ctx.send(f"Staff role set to {value.name}.")
+#     elif option == "defaultRole":
+#         roleId = value.id
+#         with open("config.json", "r") as cg:
+#             c = json.load(cg)
+#         with open("config.json", "w") as config:
+#             c["defaultRole"] = roleId
+#             json.dump(c, config)
+#         await ctx.send(f"Default role set to {value.name}.")
+#     else:
+#         await ctx.send(f"{option} is not a valid option, try staffRole or defaultRole.")
 
-
-bot.run(token)
+try:
+    bot.run(token)
+except BaseException:
+    inviteDict.close()
+    userDict.close()
+    print("Stopping")
+    exit()
+except KeyboardInterrupt:
+    inviteDict.close()
+    userDict.close()
+    print("Stopping")
+    exit()
