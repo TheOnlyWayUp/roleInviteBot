@@ -4,11 +4,11 @@ import pandas as pd
 from discord.ext import commands, tasks
 from rich.theme import Theme
 from rich import print
+from sqlitedict import SqliteDict
 
 # from replit import db
 
 theme = Theme({"info": "cyan", "warning": "yellow", "error": "red", "success": "green"})
-bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
 with open("config.json") as f:
     config = json.load(f)
@@ -24,10 +24,20 @@ log = config["log"]
 [ ] Add staff only commands + checks
 [x] Add config
 """
+bot = commands.Bot(command_prefix=config["prefix"], intents=discord.Intents.all())
+
+
+def staffCheck():
+    def predicate(ctx):
+        if staffRoleId in [role.id for role in ctx.author.roles]:
+            return True
+        return False
+
+    return commands.check(predicate)
+
 
 if log:
     from rich.console import Console
-
     console = Console(theme=theme)
     print("[green]logging is enabled[/]")
 else:
@@ -45,7 +55,7 @@ else:
 
 class invite:
     def __init__(self, cheese):
-        self.db = {}
+        self.db = SqliteDict(cheese, autocommit=True)
 
     def set(self, key, value):
         try:
@@ -61,7 +71,7 @@ class invite:
             return False
 
     def dump(self):
-        return self.db
+        return {k: v for k, v in self.db.items()}
 
     def delete(self, key):
         try:
@@ -230,10 +240,8 @@ async def leaderboard(ctx, role: discord.Role = None):
         users = [(k, v["invited"]["verifiedInvites"]) for k, v in users.items()]
         users = sorted(users, key=lambda x: len(x[1]), reverse=True)
         users = users[:10]
-        console.log(users)
         safe = {bot.get_user(int(k)).name: len(v) for k, v in users}
         df = {"name": list(safe.keys()), "invites": list(safe.values())}
-        console.log(df)
         df = pd.DataFrame(df)
         dfi.export(df, "leaderboard.png", table_conversion="matplotlib")
         file = discord.File("leaderboard.png", filename="leaderboard.png")
@@ -255,8 +263,9 @@ async def leaderboard(ctx, role: discord.Role = None):
     ]
     safe = {bot.get_user(int(l)): users.count(l) for l in set(users)}
     invites = sorted(safe.items(), key=lambda x: x[1], reverse=True)
+    safe = {"name": list(safe.keys()), "invites": list(safe.values())}
     dfi.export(
-        {"name": list(safe.keys()), "invites": list(safe.values())},
+        safe,
         "leaderboard.png",
         table_conversion="matplotlib",
     )
@@ -340,6 +349,27 @@ async def about(ctx):
         name="Staff Role", value=ctx.guild.get_role(staffRoleId).mention, inline=False
     )
     await ctx.send(embed=aboutEmbed)
+
+
+@bot.command(help="Changes the config")
+@commands.check_any(staffCheck())
+async def config(ctx, option, value: discord.Role):
+    if option == "staffRole":
+        staffRoleId = value.id
+        with open("config.json", "w") as config:
+            c = json.load("config.json")
+            c["staffRole"] = staffRoleId
+            json.dump(c, config)
+        await ctx.send(f"Staff role set to {value.name}.")
+    elif option == "defaultRole":
+        roleId = value.id
+        with open("config.json", "w") as config:
+            c = json.load("config.json")
+            c["defaultRole"] = roleId
+            json.dump(c, config)
+        await ctx.send(f"Default role set to {value.name}.")
+    else:
+        await ctx.send(f"{option} is not a valid option, try staffRole or defaultRole.")
 
 
 bot.run(token)
