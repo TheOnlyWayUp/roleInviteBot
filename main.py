@@ -76,7 +76,7 @@ class invite:
 
     def dump(self):
         """Returns the entire database's value."""
-        return {k: v for k, v in self.db.items()}
+        return dict(self.db.items())
 
     def delete(self, key):
         """Deletes a key from the database"""
