@@ -2,10 +2,11 @@
 
 Invite tracker bot, that adds an invite and shows you the leaderboard when one of your invited users is verified. Made for [this thread](https://www.reddit.com/r/Discord_Bots/comments/ras8p6/paid_bot_that_does_an_invite_leaderboard_filtered/).
 
-Hey it works! To do is in main.py
+- You invite people to your server
+- When they get a verified role, the inviter gets +1 to their verified Invites
+- You can use the !leaderboard command, or use !leaderboard @role to get the leaderboard for the any role
 
-How to use - 
-Edit config.json -
+Make sure to edit config.json -
 ```json
 {
     "token": "your bot token",
