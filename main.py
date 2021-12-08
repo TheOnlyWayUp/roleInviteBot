@@ -302,7 +302,7 @@ async def help(ctx):
 )
 async def invites(ctx, user: discord.Member = None):
     """Gives you the invite stats for the user."""
-    if user == None:
+    if user is None:
         user = ctx.author
     try:
         userd = userDict.get(str(user.id))
