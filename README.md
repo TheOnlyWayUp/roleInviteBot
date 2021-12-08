@@ -6,6 +6,8 @@ Invite tracker bot, that adds an invite and shows you the leaderboard when one o
 - When they get a verified role, the inviter gets +1 to their verified Invites
 - You can use the !leaderboard command, or use !leaderboard @role to get the leaderboard for the any role
 
+Requirements.txt may look large, but don't worry, they're pretty small libraries and most are dependencies of the 8 libraries this bot uses. Do `python3.9 -m pip install -r requirements.txt`
+
 Make sure to edit config.json -
 ```json
 {
