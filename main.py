@@ -152,7 +152,7 @@ async def on_member_join(member):
             )
             bruh = userDict.get(str(invite.inviter.id))
             bruh["invited"]["invited"].update([member.id])
-            e = userDict.set(str(invite.inviter.id), bruh)
+            userDict.set(str(invite.inviter.id), bruh)
             console.log(bruh)
             # console.log("Trying to set invites")
             console.log(
@@ -254,7 +254,6 @@ async def leaderboard(ctx, role: discord.Role = None):
         ]
     ]
     users = {bot.get_user(int(l)): users.count(l) for l in set(users)}
-    invites = sorted(users.items(), key=lambda x: x[1], reverse=True)[::10]
     safe = {"name": list(users.keys()), "invites": list(users.values())}
     dfi.export(
         pd.DataFrame(safe),
@@ -347,5 +346,5 @@ async def about(ctx):
     )
     await ctx.send(embed=aboutEmbed)
 
-
+    
 bot.run(token)
