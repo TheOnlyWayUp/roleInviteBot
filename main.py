@@ -306,7 +306,7 @@ async def invites(ctx, user: discord.Member = None):
     try:
         userd = userDict.get(str(user.id))
     except TypeError:
-        await ctx.send(f"That user isn't being tracked yet.")
+        await ctx.send("That user isn't being tracked yet.")
         return
     inviter = "Unknown"
     try:
@@ -346,5 +346,5 @@ async def about(ctx):
     )
     await ctx.send(embed=aboutEmbed)
 
-    
+
 bot.run(token)
