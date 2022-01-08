@@ -12,6 +12,7 @@ Make sure to edit config.json -
 ```json
 {
     "token": "your bot token",
+    "prefix": "prefix here",
     "log": "whether or not to show logs (true, false), False Recommended as it's slightly spammy and very resource intensive",
     "staffRoleId": "role id of the staff role, anyone with the role gets access to staff commands",
     "roleId": "the role that needs to be tracked (put main nft role id here)"
